@@ -22,16 +22,29 @@ U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 1
 // used to toggle the receive/transmit pin on the driver
 #define TxEnablePin 9                                                                           // INDUSTRUINO RS485
 // The total amount of available memory on the master to store data
-#define TOTAL_NO_OF_REGISTERS 1                                                // SENSOR SPEC
+#define TOTAL_NO_OF_REGISTERS 6                                                // SENSOR SPEC
 // sensor sends integer of wind speed * 10 (m/s)
 // This is the easiest way to create new packets
 // Add as many as you want. TOTAL_NO_OF_PACKETS
 // is automatically updated.
+
+#define SLAVE_ID 1
+
+// Group nearby registers in packets   
+// 10, 11 - packet 1
+// 45, 46 - packet 2
+// 78, 79 - packet 3
 enum
 {
   PACKET1,                                          // only need 1 type of operation: read wind sensor
+  PACKET2,
+  PACKET3,
   TOTAL_NO_OF_PACKETS // leave this last entry
 };
+
+const uint8_t packet_start[TOTAL_NO_OF_PACKETS] = {10, 45, 78};
+const uint8_t packet_size[TOTAL_NO_OF_PACKETS] = {2, 2, 2};
+
 // Create an array of Packets to be configured
 Packet packets[TOTAL_NO_OF_PACKETS];
 // Masters register array
@@ -40,13 +53,26 @@ void setup()
 {
   // Initialize each packet: packet, slave-id, function, start of slave index, number of regs, start of master index
   // READ_HOLDING_REGISTERS (no info in input_registers)                        // SENSOR SPEC
-  // slave-id: 2                                                                                               // SENSOR SPEC
-  // number of registers to read: only 1 = speed                                       // SENSOR SPEC
-  modbus_construct(&packets[PACKET1], 2, READ_HOLDING_REGISTERS, 0, 1, 0);
+  // slave-id:                                                                  // SENSOR SPEC
+  // number of registers to read: only 1 = speed                                // SENSOR SPEC
+
+  uint8_t packet_addr[TOTAL_NO_OF_PACKETS] = {0};
+
+  for (uint8_t i = 1; i < TOTAL_NO_OF_PACKETS; i++)
+  {
+    packet_addr[i] = packet_addr[i - 1] + packet_size[i - 1];
+  }
+
+  for (uint8_t i = 0; i < TOTAL_NO_OF_PACKETS; i++)
+  {
+    modbus_construct(&packets[i], SLAVE_ID, READ_HOLDING_REGISTERS, packet_start[i], packet_size[i], packet_addr[i]);
+  }
 
   // Initialize the Modbus Finite State Machine
   // default SERIAL_8N2 -- wind sensor brochure mentions n,8,1 = 8N1??
-  modbus_configure(&Serial1, baud, SERIAL_8N2, timeout, polling, retry_count, TxEnablePin, packets, TOTAL_NO_OF_PACKETS, regs);
+  /* For arduino industrial -- Serial1
+     for test on arduino atmga328p -- Serial */
+  modbus_configure(&Serial, baud, SERIAL_8N2, timeout, polling, retry_count, TxEnablePin, packets, TOTAL_NO_OF_PACKETS, regs);
   // Serial1 = INDUSTRUINO RS485
   Serial.begin(9600);
   u8g.begin();
@@ -60,8 +86,10 @@ void loop()
 
   float wind_speed = regs[0] / 10.0;
 
+#if 0
   Serial.print("wind speed (m/s): ");
   Serial.println(wind_speed);
+#endif
 
   u8g.firstPage();
   do {
