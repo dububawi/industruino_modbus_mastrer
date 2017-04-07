@@ -1,4 +1,3 @@
-
 /*
   wind speed sensor, anemometer on INDUSTRUINO IND.I/O topboard 1286
   RS485 connection with wind sensor, Modbus protocol
@@ -12,23 +11,27 @@
 */
 
 #include <SimpleModbusMaster.h>
-#include "U8glib.h"
+#include <U8glib.h>
 U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 19, A0 = 22
 //////////////////// Port information ///////////////////
 #define baud 9600                                                                                  // SENSOR SPEC
-#define timeout 1000
+#define timeout 400
 #define polling 200 // the scan rate
 #define retry_count 10
 // used to toggle the receive/transmit pin on the driver
 #define TxEnablePin 9                                                                           // INDUSTRUINO RS485
 // The total amount of available memory on the master to store data
+
+#define SLAVE_ID 1
+
+uint8_t slave_ids[] = {1, 2, 3, 4, 5};
+#define SLAVES_TOTAL_NO (sizeof(slave_ids) / sizeof(slave_ids[0]))
+
 #define TOTAL_NO_OF_REGISTERS 6                                                // SENSOR SPEC
 // sensor sends integer of wind speed * 10 (m/s)
 // This is the easiest way to create new packets
-// Add as many as you want. TOTAL_NO_OF_PACKETS
+// Add as many as you want. NO_OF_PACKETS_IN_SLAVE
 // is automatically updated.
-
-#define SLAVE_ID 1
 
 // Group nearby registers in packets   
 // 10, 11 - packet 1
@@ -39,16 +42,24 @@ enum
   PACKET1,                                          // only need 1 type of operation: read wind sensor
   PACKET2,
   PACKET3,
-  TOTAL_NO_OF_PACKETS // leave this last entry
+  NO_OF_PACKETS_IN_SLAVE // leave this last entry
 };
 
-const uint8_t packet_start[TOTAL_NO_OF_PACKETS] = {10, 45, 78};
-const uint8_t packet_size[TOTAL_NO_OF_PACKETS] = {2, 2, 2};
+const uint8_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {10, 45, 78};
+const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2};
 
 // Create an array of Packets to be configured
-Packet packets[TOTAL_NO_OF_PACKETS];
+// Must be onedimetional array for modbus_configure()
+Packet packets[NO_OF_PACKETS_IN_SLAVE * SLAVES_TOTAL_NO];
 // Masters register array
-unsigned int regs[TOTAL_NO_OF_REGISTERS];
+unsigned int regs[SLAVES_TOTAL_NO][TOTAL_NO_OF_REGISTERS];
+
+volatile uint8_t packet_addr_in_regs[SLAVES_TOTAL_NO][NO_OF_PACKETS_IN_SLAVE] = {0};
+
+int16_t flow_rate_m3_h;
+int16_t pressure_bar;
+int16_t temprature_c;
+
 void setup()
 {
   // Initialize each packet: packet, slave-id, function, start of slave index, number of regs, start of master index
@@ -56,23 +67,63 @@ void setup()
   // slave-id:                                                                  // SENSOR SPEC
   // number of registers to read: only 1 = speed                                // SENSOR SPEC
 
-  uint8_t packet_addr[TOTAL_NO_OF_PACKETS] = {0};
-
-  for (uint8_t i = 1; i < TOTAL_NO_OF_PACKETS; i++)
+  uint8_t total_packet_size = 0;
+  for (uint8_t i = 0; i < NO_OF_PACKETS_IN_SLAVE; i++)
   {
-    packet_addr[i] = packet_addr[i - 1] + packet_size[i - 1];
+    total_packet_size += packet_size[i];
   }
 
-  for (uint8_t i = 0; i < TOTAL_NO_OF_PACKETS; i++)
+//  static uint8_t packet_addr_in_regs[SLAVES_TOTAL_NO][NO_OF_PACKETS_IN_SLAVE] = {0};
+
+  for (uint8_t slave = 0; slave < SLAVES_TOTAL_NO; slave++)
   {
-    modbus_construct(&packets[i], SLAVE_ID, READ_HOLDING_REGISTERS, packet_start[i], packet_size[i], packet_addr[i]);
+    for (uint8_t packet = 0; packet < NO_OF_PACKETS_IN_SLAVE; packet++)
+    {
+      if (slave == 0 && packet == 0)
+      {
+        packet_addr_in_regs[slave][packet] = 0;  
+      }
+      else if (packet == 0)
+      {
+        packet_addr_in_regs[slave][packet] = packet_addr_in_regs[slave - 1][NO_OF_PACKETS_IN_SLAVE - 1] + packet_size[NO_OF_PACKETS_IN_SLAVE - 1];
+      }
+      else
+      {
+        packet_addr_in_regs[slave][packet] = packet_addr_in_regs[slave][packet - 1] + packet_size[packet];
+      }
+    }
+  }
+
+  uint8_t current_packet = 0;
+  for (uint8_t slave = 0; slave < SLAVES_TOTAL_NO; slave++)
+  {
+    for (uint8_t packet = 0; packet < NO_OF_PACKETS_IN_SLAVE; packet++)
+    {
+      modbus_construct(&packets[current_packet], 
+                        slave_ids[slave], 
+                        READ_HOLDING_REGISTERS, 
+                        packet_start_register[packet], 
+                        packet_size[packet], 
+                        packet_addr_in_regs[slave][packet]);
+
+       current_packet++;
+    }
   }
 
   // Initialize the Modbus Finite State Machine
   // default SERIAL_8N2 -- wind sensor brochure mentions n,8,1 = 8N1??
   /* For arduino industrial -- Serial1
      for test on arduino atmga328p -- Serial */
-  modbus_configure(&Serial, baud, SERIAL_8N2, timeout, polling, retry_count, TxEnablePin, packets, TOTAL_NO_OF_PACKETS, regs);
+  modbus_configure(&Serial1,
+					baud,
+					SERIAL_8N2,
+					timeout, polling,
+					retry_count,
+					TxEnablePin,
+					packets,
+					(NO_OF_PACKETS_IN_SLAVE * SLAVES_TOTAL_NO),
+					regs[0]);
+
   // Serial1 = INDUSTRUINO RS485
   Serial.begin(9600);
   u8g.begin();
@@ -84,7 +135,7 @@ void loop()
 {
   modbus_update();                                                             // send 1 simple Master request to Slave, as defined above
 
-  float wind_speed = regs[0] / 10.0;
+  float wind_speed = regs[0][0] / 10.0;
 
 #if 0
   Serial.print("wind speed (m/s): ");
