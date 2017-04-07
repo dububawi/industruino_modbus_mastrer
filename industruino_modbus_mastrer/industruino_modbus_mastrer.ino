@@ -148,7 +148,7 @@ void loop()
         Serial.print(", reg ");
         Serial.print(register_master);
         Serial.print(" ");
-        Serial.print(regs[slave][register_master]);
+        Serial.print(regs[slave][register_master], HEX);
         Serial.println();
       }
   }
