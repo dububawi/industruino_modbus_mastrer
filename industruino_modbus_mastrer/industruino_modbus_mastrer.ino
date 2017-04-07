@@ -131,6 +131,7 @@ void setup()
   pinMode(26, OUTPUT);
   analogWrite(26, 100);
 }
+
 void loop()
 {
   modbus_update();                                                             // send 1 simple Master request to Slave, as defined above
@@ -152,6 +153,19 @@ void loop()
         Serial.println();
       }
   }
+
+  *(uint32_t *)&flow_rate_m3_h = ((uint32_t)regs[0][2] |  (uint32_t)regs[0][3]);
+  *(uint32_t *)&pressure_bar = ((uint32_t)regs[0][4] |  (uint32_t)regs[0][5]);
+  *(uint32_t *)&temprature_c = ((uint32_t)regs[0][6] |  (uint32_t)regs[0][7]);
+
+  Serial.print("flow_rate_m3_h ");
+  Serial.println(flow_rate_m3_h);
+
+  Serial.print("pressure_bar ");
+  Serial.println(pressure_bar);
+
+  Serial.print("temprature_c ");
+  Serial.println(temprature_c);
 
   u8g.firstPage();
   do {
