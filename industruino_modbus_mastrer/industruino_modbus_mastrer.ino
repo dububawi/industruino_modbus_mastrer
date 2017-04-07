@@ -22,6 +22,7 @@ U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 1
 #define TxEnablePin 9                                                                           // INDUSTRUINO RS485
 // The total amount of available memory on the master to store data
 
+int16_t serial_number; /* 0001 - 0002 1 - 2 Serial number 32-bit integer Read */
 int16_t flow_rate_m3_h; /* 006C - 006D 108 - 109 Flow m3n/hr Floating point Read*/
 int16_t pressure_bar; /* 009A - 009B 154 - 155 Pressure bar gauge Floating point Read */
 int16_t temprature_c; /* 00CC - 00CD 204 - 205 Temperature *C Floating point Read */
@@ -48,7 +49,7 @@ enum
   NO_OF_PACKETS_IN_SLAVE // leave this last entry
 };
 
-const uint8_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {1, 0x006c, 0x009A, 0x00CC};
+const uint16_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {1, 0x006c, 0x009A, 0x00CC};
 const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2, 2};
 
 // Create an array of Packets to be configured
