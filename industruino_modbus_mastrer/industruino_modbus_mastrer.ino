@@ -22,9 +22,11 @@ U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 1
 #define TxEnablePin 9                                                                           // INDUSTRUINO RS485
 // The total amount of available memory on the master to store data
 
-#define SLAVE_ID 1
+int16_t flow_rate_m3_h; /* 006C - 006D 108 - 109 Flow m3n/hr Floating point Read*/
+int16_t pressure_bar; /* 009A - 009B 154 - 155 Pressure bar gauge Floating point Read */
+int16_t temprature_c; /* 00CC - 00CD 204 - 205 Temperature °C Floating point Read */
 
-uint8_t slave_ids[] = {1, 2, 3, 4, 5};
+uint8_t slave_ids[] = {2};
 #define SLAVES_TOTAL_NO (sizeof(slave_ids) / sizeof(slave_ids[0]))
 
 #define TOTAL_NO_OF_REGISTERS 6                                                // SENSOR SPEC
@@ -42,11 +44,12 @@ enum
   PACKET1,                                          // only need 1 type of operation: read wind sensor
   PACKET2,
   PACKET3,
+  PACKET4,
   NO_OF_PACKETS_IN_SLAVE // leave this last entry
 };
 
-const uint8_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {10, 45, 78};
-const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2};
+const uint8_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {0, 0x006c, 0x009A, 0x00CC};
+const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2, 2};
 
 // Create an array of Packets to be configured
 // Must be onedimetional array for modbus_configure()
@@ -55,10 +58,6 @@ Packet packets[NO_OF_PACKETS_IN_SLAVE * SLAVES_TOTAL_NO];
 unsigned int regs[SLAVES_TOTAL_NO][TOTAL_NO_OF_REGISTERS];
 
 volatile uint8_t packet_addr_in_regs[SLAVES_TOTAL_NO][NO_OF_PACKETS_IN_SLAVE] = {0};
-
-int16_t flow_rate_m3_h;
-int16_t pressure_bar;
-int16_t temprature_c;
 
 void setup()
 {
@@ -116,7 +115,7 @@ void setup()
      for test on arduino atmga328p -- Serial */
   modbus_configure(&Serial1,
 					baud,
-					SERIAL_8N2,
+					SERIAL_8N1,
 					timeout, polling,
 					retry_count,
 					TxEnablePin,
@@ -137,10 +136,22 @@ void loop()
 
   float wind_speed = regs[0][0] / 10.0;
 
-#if 0
   Serial.print("wind speed (m/s): ");
   Serial.println(wind_speed);
-#endif
+
+  for (uint8_t slave = 0; slave < SLAVES_TOTAL_NO; slave++)
+  {
+      for (uint8_t register_master = 0; register_master < TOTAL_NO_OF_REGISTERS; register_master++)
+      {
+		Serial.print("slave ");
+		Serial.print(slave);
+		Serial.print(", reg ");
+		Serial.print(register_master);
+		Serial.print(" ");
+		Serial.print(regs[slave][register_master]);
+		Serial.println();
+      }
+  }
 
   u8g.firstPage();
   do {
