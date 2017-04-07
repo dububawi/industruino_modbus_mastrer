@@ -15,7 +15,7 @@
 U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 19, A0 = 22
 //////////////////// Port information ///////////////////
 #define baud 9600                                                                                  // SENSOR SPEC
-#define timeout 400
+#define timeout 1000
 #define polling 200 // the scan rate
 #define retry_count 10
 // used to toggle the receive/transmit pin on the driver
@@ -48,7 +48,7 @@ enum
   NO_OF_PACKETS_IN_SLAVE // leave this last entry
 };
 
-const uint8_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {0, 0x006c, 0x009A, 0x00CC};
+const uint8_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {1, 0x006c, 0x009A, 0x00CC};
 const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2, 2};
 
 // Create an array of Packets to be configured
