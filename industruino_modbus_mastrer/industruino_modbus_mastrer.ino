@@ -24,12 +24,12 @@ U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 1
 
 int16_t flow_rate_m3_h; /* 006C - 006D 108 - 109 Flow m3n/hr Floating point Read*/
 int16_t pressure_bar; /* 009A - 009B 154 - 155 Pressure bar gauge Floating point Read */
-int16_t temprature_c; /* 00CC - 00CD 204 - 205 Temperature °C Floating point Read */
+int16_t temprature_c; /* 00CC - 00CD 204 - 205 Temperature *C Floating point Read */
 
 uint8_t slave_ids[] = {2};
 #define SLAVES_TOTAL_NO (sizeof(slave_ids) / sizeof(slave_ids[0]))
 
-#define TOTAL_NO_OF_REGISTERS 6                                                // SENSOR SPEC
+#define TOTAL_NO_OF_REGISTERS 8                                                // SENSOR SPEC
 // sensor sends integer of wind speed * 10 (m/s)
 // This is the easiest way to create new packets
 // Add as many as you want. NO_OF_PACKETS_IN_SLAVE
@@ -136,20 +136,19 @@ void loop()
 
   float wind_speed = regs[0][0] / 10.0;
 
-  Serial.print("wind speed (m/s): ");
-  Serial.println(wind_speed);
+  Serial.println("-----------------");
 
   for (uint8_t slave = 0; slave < SLAVES_TOTAL_NO; slave++)
   {
       for (uint8_t register_master = 0; register_master < TOTAL_NO_OF_REGISTERS; register_master++)
       {
-		Serial.print("slave ");
-		Serial.print(slave);
-		Serial.print(", reg ");
-		Serial.print(register_master);
-		Serial.print(" ");
-		Serial.print(regs[slave][register_master]);
-		Serial.println();
+        Serial.print("slave ");
+        Serial.print(slave);
+        Serial.print(", reg ");
+        Serial.print(register_master);
+        Serial.print(" ");
+        Serial.print(regs[slave][register_master]);
+        Serial.println();
       }
   }
 
