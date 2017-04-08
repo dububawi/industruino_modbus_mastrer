@@ -6,40 +6,54 @@
   read holding register 0
   divide by 10 for wind speed in m/s
 
-  more info on the SimpleModbusMaster library: https://drive.google.com/folderview?id=0B0B286tJkafVYnBhNGo4N3poQ2c&usp=drive_web&tid=0B0B286tJkafVSENVcU1RQVBfSzg#list
+  more info on the SimpleModbusMaster library:
+  https://drive.google.com/folderview?id=0B0B286tJkafVYnBhNGo4N3poQ2c&usp=drive_web&tid=0B0B286tJkafVSENVcU1RQVBfSzg#list
 
 */
 
 #include <SimpleModbusMaster.h>
 #include <U8glib.h>
-U8GLIB_MINI12864 u8g(21, 20, 19, 22);    // SPI Com: SCK = 21, MOSI = 20, CS = 19, A0 = 22
+// SPI Com: SCK = 21, MOSI = 20, CS = 19, A0 = 22
+U8GLIB_MINI12864 u8g(21, 20, 19, 22);
 //////////////////// Port information ///////////////////
-#define baud 9600                                                                                  // SENSOR SPEC
-#define timeout 1000
-#define polling 200 // the scan rate
-#define retry_count 10
+#define BAUD 9600                                                                                  // SENSOR SPEC
+#define TIMEOUT 1000
+#define POLLING 200 // the scan rate
+#define RETRY_COUNT 10
 // used to toggle the receive/transmit pin on the driver
 #define TxEnablePin 9                                                                           // INDUSTRUINO RS485
 // The total amount of available memory on the master to store data
 
-int16_t serial_number; /* 0001 - 0002 1 - 2 Serial number 32-bit integer Read */
-int16_t flow_rate_m3_h; /* 006C - 006D 108 - 109 Flow m3n/hr Floating point Read*/
-int16_t pressure_bar; /* 009A - 009B 154 - 155 Pressure bar gauge Floating point Read */
-int16_t temprature_c; /* 00CC - 00CD 204 - 205 Temperature *C Floating point Read */
+union modbus_float
+{
+	int32_t v_float;
+	uint16_t ar[2];
+};
+
+union modbus_int32
+{
+	float v_int32;
+	uint16_t ar[2];
+};
+
+union modbus_int32 serial_number;  /* 0001 - 0002   1 -   2 Serial number       32-bit integer    Read */
+union modbus_float flow_rate_m3_h; /* 006C - 006D 108 - 109 Flow m3n/hr         Floating point    Read*/
+union modbus_float pressure_bar;   /* 009A - 009B 154 - 155 Pressure bar gauge  Floating point    Read */
+union modbus_float temprature_c;   /* 00CC - 00CD 204 - 205 Temperature *C      Floating point    Read */
 
 uint8_t slave_ids[] = {2};
 #define SLAVES_TOTAL_NO (sizeof(slave_ids) / sizeof(slave_ids[0]))
 
 #define TOTAL_NO_OF_REGISTERS 8                                                // SENSOR SPEC
-// sensor sends integer of wind speed * 10 (m/s)
 // This is the easiest way to create new packets
 // Add as many as you want. NO_OF_PACKETS_IN_SLAVE
 // is automatically updated.
 
 // Group nearby registers in packets   
-// 10, 11 - packet 1
-// 45, 46 - packet 2
-// 78, 79 - packet 3
+// 0001 - 0002 -- packet 1
+// 006C - 006D -- packet 2
+// 009A - 009B -- packet 3
+// 00CC - 00CD -- packet 3
 enum
 {
   PACKET1,                                          // only need 1 type of operation: read wind sensor
@@ -115,10 +129,10 @@ void setup()
   /* For arduino industrial -- Serial1
      for test on arduino atmga328p -- Serial */
   modbus_configure(&Serial1,
-					baud,
+					BAUD,
 					SERIAL_8N1,
-					timeout, polling,
-					retry_count,
+					TIMEOUT, POLLING,
+					RETRY_COUNT,
 					TxEnablePin,
 					packets,
 					(NO_OF_PACKETS_IN_SLAVE * SLAVES_TOTAL_NO),
@@ -134,9 +148,8 @@ void setup()
 
 void loop()
 {
-  modbus_update();                                                             // send 1 simple Master request to Slave, as defined above
-
-  float wind_speed = regs[0][0] / 10.0;
+  // send 1 simple Master request to Slave, as defined above
+  modbus_update();
 
   Serial.println("-----------------");
 
@@ -154,33 +167,45 @@ void loop()
       }
   }
 
-  *(uint32_t *)&flow_rate_m3_h = ((uint32_t)regs[0][2] |  (uint32_t)regs[0][3]);
-  *(uint32_t *)&pressure_bar = ((uint32_t)regs[0][4] |  (uint32_t)regs[0][5]);
-  *(uint32_t *)&temprature_c = ((uint32_t)regs[0][6] |  (uint32_t)regs[0][7]);
+  serial_number.ar[0] = regs[0][0];
+  serial_number.ar[1] = regs[0][1];
+
+  flow_rate_m3_h.ar[0] = regs[0][2];
+  flow_rate_m3_h.ar[1] = regs[0][3];
+
+  pressure_bar.ar[0] = regs[0][4];
+  pressure_bar.ar[1] = regs[0][5];
+
+  temprature_c.ar[0] = regs[0][6];
+  temprature_c.ar[1] = regs[0][7];
 
   Serial.print("flow_rate_m3_h ");
-  Serial.println(flow_rate_m3_h);
+  Serial.println(flow_rate_m3_h.v_float);
 
   Serial.print("pressure_bar ");
-  Serial.println(pressure_bar);
+  Serial.println(pressure_bar.v_float);
 
   Serial.print("temprature_c ");
-  Serial.println(temprature_c);
+  Serial.println(temprature_c.v_float);
 
   u8g.firstPage();
   do {
-    u8g.setFont(u8g_font_fub20n);
-    u8g.setPrintPos(25, 55);
-    u8g.print(wind_speed, 1);
+
     u8g.setFont(u8g_font_unifont);
-    u8g.print(" m/s ");
+
     u8g.setPrintPos(20, 15);
-    u8g.print("INDUSTRUINO");
+    u8g.print(flow_rate_m3_h.v_float, 1);
+    u8g.print(" m3/h");
+
     u8g.setPrintPos(20, 30);
-    u8g.print("Modbus RTU");
+    u8g.print(pressure_bar.v_float, 1);
+    u8g.print(" bar");
+
+    u8g.setPrintPos(25, 55);
+    u8g.print(temprature_c.v_float, 1);
+    u8g.print(" *C");
 
   } while ( u8g.nextPage() );
 
   delay(3000);
 }
-
