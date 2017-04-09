@@ -26,7 +26,7 @@ U8GLIB_MINI12864 u8g(21, 20, 19, 22);
 
 union modbus_float
 {
-	int32_t v_float;
+	float v_float;
 	uint16_t ar[2];
 };
 
@@ -194,15 +194,15 @@ void loop()
     u8g.setFont(u8g_font_unifont);
 
     u8g.setPrintPos(20, 15);
-    u8g.print(flow_rate_m3_h.v_float, 1);
+    u8g.print(flow_rate_m3_h.v_float);
     u8g.print(" m3/h");
 
     u8g.setPrintPos(20, 30);
-    u8g.print(pressure_bar.v_float, 1);
+    u8g.print(pressure_bar.v_float);
     u8g.print(" bar");
 
-    u8g.setPrintPos(25, 55);
-    u8g.print(temprature_c.v_float, 1);
+    u8g.setPrintPos(20, 45);
+    u8g.print(temprature_c.v_float);
     u8g.print(" *C");
 
   } while ( u8g.nextPage() );
