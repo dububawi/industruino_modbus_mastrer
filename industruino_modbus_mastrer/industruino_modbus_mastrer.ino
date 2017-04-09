@@ -208,6 +208,10 @@ void loop()
     u8g.print(temprature_c.v_float);
     u8g.print(" *C");
 
+    u8g.setPrintPos(20, 60);
+    u8g.print(totalizer_m3.v_float);
+    u8g.print(" m3");
+
   } while ( u8g.nextPage() );
 
   delay(3000);
