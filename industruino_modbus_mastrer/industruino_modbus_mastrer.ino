@@ -36,14 +36,15 @@ union modbus_int32
 	uint16_t ar[2];
 };
 
-union modbus_float flow_rate_m3_h; /* 0x19 25d Flow m3n/hr       32-bit Floating point    Read */
-union modbus_float pressure_bar;   /* 0x28 40d Pressure in bar   32-bit Floating point    Read */
-union modbus_float temprature_c;   /* 0x48 72d Temperature *C    32-bit Floating point    Read */
+union modbus_float flow_rate_m3_h; /* 0x19 25d  Flow m3n/hr       32-bit Floating point    Read */
+union modbus_float pressure_bar;   /* 0x28 40d  Pressure in bar   32-bit Floating point    Read */
+union modbus_float temprature_c;   /* 0x48 72d  Temperature *C    32-bit Floating point    Read */
+union modbus_float totalizer_m3;   /* 0x88 136d Totalizer m^3     32-bit Floating point    Read / Write */
 
 uint8_t slave_ids[] = {2};
 #define SLAVES_TOTAL_NO (sizeof(slave_ids) / sizeof(slave_ids[0]))
 
-#define TOTAL_NO_OF_REGISTERS 6                                                // SENSOR SPEC
+#define TOTAL_NO_OF_REGISTERS 8                                                // SENSOR SPEC
 // This is the easiest way to create new packets
 // Add as many as you want. NO_OF_PACKETS_IN_SLAVE
 // is automatically updated.
@@ -52,16 +53,18 @@ uint8_t slave_ids[] = {2};
 // 0x19 -- packet 1
 // 0x28 -- packet 2
 // 0x48 -- packet 3
+// 0x88 -- packet 4
 enum
 {
   PACKET1,                                          // only need 1 type of operation: read wind sensor
   PACKET2,
   PACKET3,
+  PACKET4,
   NO_OF_PACKETS_IN_SLAVE // leave this last entry
 };
 
-const uint16_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {0x19, 0x28, 0x48};
-const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2};
+const uint16_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {0x19, 0x28, 0x48, 0x88};
+const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2, 2};
 
 // Create an array of Packets to be configured
 // Must be onedimetional array for modbus_configure()
@@ -173,6 +176,9 @@ void loop()
   temprature_c.ar[0] = regs[0][4];
   temprature_c.ar[1] = regs[0][5];
 
+  totalizer_m3.ar[0] = regs[0][6];
+  totalizer_m3.ar[1] = regs[0][7];
+
   Serial.print("flow_rate_m3_h ");
   Serial.println(flow_rate_m3_h.v_float);
 
@@ -181,6 +187,9 @@ void loop()
 
   Serial.print("temprature_c ");
   Serial.println(temprature_c.v_float);
+
+  Serial.print("totalizer_m3 ");
+  Serial.println(totalizer_m3.v_float);
 
   u8g.firstPage();
   do {
