@@ -174,13 +174,13 @@ void loop()
   temprature_c.ar[1] = regs[0][7];
 
   Serial.print("flow_rate_m3_h ");
-  Serial.println(flow_rate_m3_h.v_float);
+  Serial.println(flow_rate_m3_h.v_int32);
 
   Serial.print("pressure_bar ");
-  Serial.println(pressure_bar.v_float);
+  Serial.println(pressure_bar.v_int32);
 
   Serial.print("temprature_c ");
-  Serial.println(temprature_c.v_float);
+  Serial.println(temprature_c.v_int32);
 
   u8g.firstPage();
   do {
