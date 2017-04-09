@@ -36,10 +36,9 @@ union modbus_int32
 	uint16_t ar[2];
 };
 
-union modbus_int32 serial_number;  /* 0001 - 0002   1 -   2 Serial number       32-bit integer    Read */
-union modbus_float flow_rate_m3_h; /* 006C - 006D 108 - 109 Flow m3n/hr         Floating point    Read*/
-union modbus_float pressure_bar;   /* 009A - 009B 154 - 155 Pressure bar gauge  Floating point    Read */
-union modbus_float temprature_c;   /* 00CC - 00CD 204 - 205 Temperature *C      Floating point    Read */
+union modbus_int32 flow_rate_m3_h; /* 0x11 17d Flow m3n/hr       32-bit integer (x10)    Read */
+union modbus_int32 pressure_bar;   /* 0x20 32d Pressure in bar   32-bit integer (x10)    Read */
+union modbus_int32 temprature_c;   /* 0x40 64d Temperature *C    32-bit integer (x10)    Read */
 
 uint8_t slave_ids[] = {2};
 #define SLAVES_TOTAL_NO (sizeof(slave_ids) / sizeof(slave_ids[0]))
@@ -50,21 +49,19 @@ uint8_t slave_ids[] = {2};
 // is automatically updated.
 
 // Group nearby registers in packets   
-// 0001 - 0002 -- packet 1
-// 006C - 006D -- packet 2
-// 009A - 009B -- packet 3
-// 00CC - 00CD -- packet 3
+// 0x11 -- packet 1
+// 0x20 -- packet 2
+// 0x40 -- packet 3
 enum
 {
   PACKET1,                                          // only need 1 type of operation: read wind sensor
   PACKET2,
   PACKET3,
-  PACKET4,
   NO_OF_PACKETS_IN_SLAVE // leave this last entry
 };
 
-const uint16_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {1, 0x006c, 0x009A, 0x00CC};
-const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2, 2};
+const uint16_t packet_start_register[NO_OF_PACKETS_IN_SLAVE] = {0x11, 0x20, 0x40};
+const uint8_t packet_size[NO_OF_PACKETS_IN_SLAVE] = {2, 2, 2};
 
 // Create an array of Packets to be configured
 // Must be onedimetional array for modbus_configure()
@@ -167,9 +164,6 @@ void loop()
       }
   }
 
-  serial_number.ar[0] = regs[0][0];
-  serial_number.ar[1] = regs[0][1];
-
   flow_rate_m3_h.ar[0] = regs[0][2];
   flow_rate_m3_h.ar[1] = regs[0][3];
 
@@ -194,15 +188,15 @@ void loop()
     u8g.setFont(u8g_font_unifont);
 
     u8g.setPrintPos(20, 15);
-    u8g.print(flow_rate_m3_h.v_float);
+    u8g.print(flow_rate_m3_h.v_int32);
     u8g.print(" m3/h");
 
     u8g.setPrintPos(20, 30);
-    u8g.print(pressure_bar.v_float);
+    u8g.print(pressure_bar.v_int32);
     u8g.print(" bar");
 
     u8g.setPrintPos(20, 45);
-    u8g.print(temprature_c.v_float);
+    u8g.print(temprature_c.v_int32);
     u8g.print(" *C");
 
   } while ( u8g.nextPage() );
